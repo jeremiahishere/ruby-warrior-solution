@@ -4,6 +4,7 @@ class Player
     @health = 20
 
     @status = :explore
+    @facing = :forward
   end
 
   def play_turn(warrior)
@@ -39,9 +40,21 @@ class Player
     end
   end
 
-  def attack(warrior)
+  def melee_attack(warrior)
     if @map.enemy_ahead?
       warrior.attack!
+    elsif @map.enemy_behind?
+      warrior.pivot!
+    else
+      change_status(:explore, warrior)
+    end
+  end
+  
+  def ranged_attack(warrior)
+    if @map.enemy_in_range_behind?
+      warrior.shoot!(:backward)
+    elsif @map.enemy_in_range_ahead?
+      warrior.shoot!(:forward)
     else
       change_status(:explore, warrior)
     end
@@ -60,14 +73,20 @@ class Player
   def explore(warrior)
     if @health < 10 && !@damaged_last_turn
       change_status(:run_and_rest, warrior)
-    elsif @map.enemy_ahead?
-      change_status(:attack, warrior)
+    elsif @map.enemy_adjacent?
+      change_status(:melee_attack, warrior)
+    elsif warrior.respond_to?(:shoot!) && @map.enemy_in_range?
+      change_status(:ranged_attack, warrior)
     elsif @map.captive_adjacent?
       change_status(:rescue, warrior)
     else
       if @map.wall_behind?
-        warrior.walk!
-        @map.current_position += 1
+        if @map.wall_immediately_ahead?
+          warrior.pivot!
+        else
+          warrior.walk!
+          @map.current_position += 1
+        end
       else
         warrior.walk!(:backward)
         @map.current_position -= 1
@@ -84,8 +103,17 @@ class Map
   end
 
   def update(warrior)
-    @positions[@current_position + 1] = map_val(warrior.feel(:forward))
-    @positions[@current_position - 1] = map_val(warrior.feel(:backward))
+    if warrior.respond_to? :look
+      warrior.look(:forward).each_with_index do |space, index|
+        @positions[@current_position + index + 1] = map_val(space)
+      end
+      warrior.look(:backward).each_with_index do |space, index|
+        @positions[@current_position - index - 1] = map_val(space)
+      end
+    else
+      @positions[@current_position + 1] = map_val(warrior.feel(:forward))
+      @positions[@current_position - 1] = map_val(warrior.feel(:backward))
+    end
     puts @positions
   end
 
@@ -101,8 +129,40 @@ class Map
     end
   end
 
+  def enemy_adjacent?
+    enemy_ahead? || enemy_behind?
+  end
+
   def enemy_ahead?
     @positions[@current_position + 1] == :enemy
+  end
+
+  def enemy_behind?
+    @positions[@current_position - 1] == :enemy
+  end
+
+  def enemy_in_range?
+    enemy_in_range_ahead? || enemy_in_range_behind?
+  end
+
+  def enemy_in_range_ahead?
+    pos = @current_position
+    while(@positions.has_key?(pos))
+      return true if @positions[pos] == :enemy
+      return false if @positions[pos] != :nothing
+      pos += 1
+    end
+    return false
+  end
+
+  def enemy_in_range_behind?
+    pos = @current_position
+    while(@positions.has_key?(pos))
+      return true if @positions[pos] == :enemy
+      return false if @positions[pos] != :nothing
+      pos -= 1
+    end
+    return false
   end
 
   def captive_adjacent?
@@ -123,8 +183,13 @@ class Map
     pos = @current_position
     while(@positions.has_key?(pos))
       return true if @positions[pos] == :wall
+
       pos -= 1
     end
     return false
+  end
+
+  def wall_immediately_ahead?
+    @positions[@current_position +1] == :wall
   end
 end
