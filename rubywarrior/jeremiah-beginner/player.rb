@@ -28,7 +28,7 @@ class Player
   end
 
   def run_and_rest(warrior)
-    if @health >= 20 || (@damaged_last_turn && @health > 9)
+    if @health >= 20 || (@damaged_last_turn && @health > 9 && @map.enemy_in_range?)
       change_status(:explore, warrior)
     else
       if @map.enemy_ahead? || @damaged_last_turn
@@ -51,7 +51,9 @@ class Player
   end
   
   def ranged_attack(warrior)
-    if @map.enemy_in_range_behind?
+    if @map.enemy_adjacent?
+      change_status(:melee_attack, warrior)
+    elsif @map.enemy_in_range_behind?
       warrior.shoot!(:backward)
     elsif @map.enemy_in_range_ahead?
       warrior.shoot!(:forward)
@@ -71,7 +73,7 @@ class Player
   end
 
   def explore(warrior)
-    if @health < 10 && !@damaged_last_turn
+    if (@health < 7 && !@damaged_last_turn) || (@health < 20 && !@map.enemy_in_range?)
       change_status(:run_and_rest, warrior)
     elsif @map.enemy_adjacent?
       change_status(:melee_attack, warrior)
@@ -147,7 +149,7 @@ class Map
 
   def enemy_in_range_ahead?
     pos = @current_position
-    while(@positions.has_key?(pos))
+    3.times do
       return true if @positions[pos] == :enemy
       return false if @positions[pos] != :nothing
       pos += 1
@@ -157,7 +159,7 @@ class Map
 
   def enemy_in_range_behind?
     pos = @current_position
-    while(@positions.has_key?(pos))
+    3.times do
       return true if @positions[pos] == :enemy
       return false if @positions[pos] != :nothing
       pos -= 1
