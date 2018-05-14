@@ -1,10 +1,19 @@
-GEM
-  remote: https://rubygems.org/
+GIT
+  remote: git@github.com:jeremiahishere/ruby-warrior.git
+  revision: 07dbadee363e8a4735fe655c166d791b625c9e68
+  branch: master
   specs:
     rubywarrior (0.1.3)
 
+GEM
+  remote: https://rubygems.org/
+  specs:
+
 PLATFORMS
-  ruby
+  java
 
 DEPENDENCIES
-  rubywarrior
+  rubywarrior!
+
+BUNDLED WITH
+   1.16.1
